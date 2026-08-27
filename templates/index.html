@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relative Motion Animator — Visual Physics Tool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="6" r="3"/>
+            <path d="M8.5 16.5l7-7"/>
+            <path d="M12 6h6v6"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>Relative Motion Animator</h1>
+          <span class="subtitle">Class XI / JEE Kinematics Visualizer</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="preset-selector-wrapper">
+          <label for="presetSelect">Preset:</label>
+          <select id="presetSelect" class="styled-select">
+            <optgroup label="Built-in" id="presetOptgroupBuiltin">
+              <option value="jee-example">JEE Example (60m Projectiles)</option>
+              <option value="river-crossing">River Crossing (Boat & River)</option>
+              <option value="rain-observer">Rain & Moving Observer</option>
+              <option value="two-trains">Two Trains on Parallel Tracks</option>
+              <option value="wind-aircraft">Aircraft & Wind Velocity</option>
+              <option value="pursuit">Pursuit Problem</option>
+              <option value="closest-approach">Arbitrary Closest Approach</option>
+            </optgroup>
+            <optgroup label="Custom" id="presetOptgroupCustom">
+              <!-- Custom presets populated dynamically -->
+            </optgroup>
+          </select>
+          <span id="presetUnsavedIndicator" class="unsaved-star hidden" title="Unsaved changes">*</span>
+        </div>
+
+        <div class="preset-buttons">
+          <button id="btnSaveCustomPreset" class="btn btn-secondary btn-sm" title="Save current simulation as custom preset">Save Preset</button>
+          <button id="btnManageCustomPresets" class="btn btn-secondary btn-sm" title="Manage Custom Presets">Manage</button>
+        </div>
+
+        <button id="btnObvious" class="btn btn-primary btn-sparkle" title="Transform scene to relative frame and show step-by-step physics intuition">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+          Make Relative Motion Obvious
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="app-workspace">
+      <!-- Left Sidebar: Inspector & Objects -->
+      <aside class="sidebar">
+        <!-- Frame & Environment Panel -->
+        <section class="card-panel">
+          <div class="panel-header">
+            <h3>Reference Frame & Environment</h3>
+          </div>
+          <div class="panel-body">
+            <div class="form-group">
+              <label for="refFrameSelect">Reference Frame:</label>
+              <select id="refFrameSelect" class="styled-select">
+                <option value="ground">Ground Frame (S)</option>
+                <!-- Dynamic options generated from particles -->
+              </select>
+            </div>
+
+            <div class="environment-grid">
+              <div class="form-group">
+                <label for="gravityValue">Gravity (g):</label>
+                <div class="input-unit">
+                  <input type="number" id="gravityValue" value="9.8" step="0.1" min="0">
+                  <span class="unit">m/s²</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="gravityDir">Direction:</label>
+                <select id="gravityDir" class="styled-select">
+                  <option value="down">Down (-y)</option>
+                  <option value="up">Up (+y)</option>
+                  <option value="left">Left (-x)</option>
+                  <option value="right">Right (+x)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="gravityEnable" checked>
+              <label for="gravityEnable">Enable Gravity</label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Objects List Panel -->
+        <section class="card-panel flex-grow">
+          <div class="panel-header flex-between">
+            <h3>Objects (<span id="particleCount">0</span>)</h3>
+            <button id="btnAddParticle" class="btn btn-sm btn-secondary">+ Add Particle</button>
+          </div>
+          <div class="panel-body scrollable" id="particleList">
+            <!-- Particle inspector cards rendered dynamically -->
+          </div>
+        </section>
+      </aside>
+
+      <!-- Center: Simulation Canvas Viewport -->
+      <section class="viewport-section">
+        <div class="canvas-wrapper" id="canvasWrapper">
+          <canvas id="simCanvas"></canvas>
+
+          <!-- Floating Frame Status Overlay -->
+          <div class="frame-status-badge" id="frameBadge">
+            <span class="badge-label">FRAME:</span>
+            <span class="badge-value" id="frameBadgeText">Ground Frame</span>
+          </div>
+
+          <!-- Camera Controls Overlay -->
+          <div class="camera-controls">
+            <button id="btnZoomIn" class="btn-icon" title="Zoom In">+</button>
+            <button id="btnZoomOut" class="btn-icon" title="Zoom Out">−</button>
+            <button id="btnFitView" class="btn-icon" title="Fit Scene">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 9v6M3 15V9"/></svg>
+            </button>
+            <button id="btnResetCam" class="btn-icon" title="Reset Camera">1:1</button>
+          </div>
+
+          <!-- Cursor Coordinate Display -->
+          <div class="coord-readout" id="coordReadout">x: 0.00 m, y: 0.00 m</div>
+        </div>
+
+        <!-- Animation Controls Toolbar -->
+        <div class="timeline-toolbar">
+          <div class="control-buttons">
+            <button id="btnJumpStart" class="btn-icon" title="Jump to Start (Home)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            </button>
+            <button id="btnStepBack" class="btn-icon" title="Step Back (Left Arrow)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+            </button>
+            <button id="btnPlayPause" class="btn-icon btn-play" title="Play/Pause (Space)">
+              <svg id="playIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="pauseIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="hidden"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <button id="btnStepForward" class="btn-icon" title="Step Forward (Right Arrow)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+            </button>
+            <button id="btnReset" class="btn-icon" title="Reset Simulation (R)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
+          </div>
+
+          <div class="scrubber-container">
+            <input type="range" id="timeScrubber" min="0" max="10" step="0.01" value="0">
+            <div class="time-readout">
+              <span class="time-val" id="timeDisplay">t = 0.000 s</span>
+            </div>
+          </div>
+
+          <div class="speed-selector">
+            <label for="speedSelect">Speed:</label>
+            <select id="speedSelect" class="styled-select-sm">
+              <option value="0.1">0.1×</option>
+              <option value="0.25">0.25×</option>
+              <option value="0.5">0.5×</option>
+              <option value="1" selected>1×</option>
+              <option value="2">2×</option>
+              <option value="5">5×</option>
+              <option value="10">10×</option>
+            </select>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Tabbed Panel -->
+    <footer class="app-bottom-panel">
+      <div class="tab-headers">
+        <button class="tab-btn active" data-tab="tab-analysis">Closest Approach & Analysis</button>
+        <button class="tab-btn" data-tab="tab-vectors">Vector Visibility</button>
+        <button class="tab-btn" data-tab="tab-graphs">Graphs Analysis</button>
+        <button class="tab-btn" data-tab="tab-explanation">Step-by-Step Explanation</button>
+        <button class="tab-btn" data-tab="tab-builder">Problem Builder / JSON</button>
+      </div>
+
+      <div class="tab-content">
+        <!-- Tab 1: Analysis & Closest Approach -->
+        <div class="tab-pane active" id="tab-analysis">
+          <div class="analysis-grid">
+            <div class="analysis-card">
+              <h4>Current Separation</h4>
+              <div class="metric-large" id="metricCurrSeparation">-- m</div>
+              <div class="metric-sub" id="metricCurrRelVel">v_rel = -- m/s</div>
+            </div>
+
+            <div class="analysis-card highlight">
+              <h4>Minimum Separation (d_min)</h4>
+              <div class="metric-large" id="metricMinSeparation">-- m</div>
+              <div class="metric-sub" id="metricMinTime">at t_min = -- s</div>
+            </div>
+
+            <div class="analysis-card">
+              <h4>Collision Status</h4>
+              <div class="metric-large" id="metricCollision">--</div>
+              <div class="metric-sub" id="metricCollisionDetail">--</div>
+            </div>
+
+            <div class="analysis-card">
+              <h4>Relative Kinematics</h4>
+              <div class="metric-details" id="metricRelative KinematicsDetails">
+                <div><strong>r_BA:</strong> <span id="valRba">(0, 0) m</span></div>
+                <div><strong>v_BA:</strong> <span id="valVba">(0, 0) m/s</span></div>
+                <div><strong>a_BA:</strong> <span id="valAba">(0, 0) m/s²</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Vector Toggles -->
+        <div class="tab-pane" id="tab-vectors">
+          <div class="vector-toggles-grid">
+            <label class="toggle-card">
+              <input type="checkbox" id="togglePosVec" checked>
+              <span>Position Vector ($\mathbf{r}$)</span>
+            </label>
+            <label class="toggle-card">
+              <input type="checkbox" id="toggleVelVec" checked>
+              <span>Velocity Vector ($\mathbf{v}$)</span>
+            </label>
+            <label class="toggle-card">
+              <input type="checkbox" id="toggleAccVec" checked>
+              <span>Acceleration Vector ($\mathbf{a}$)</span>
+            </label>
+            <label class="toggle-card">
+              <input type="checkbox" id="toggleComponents" checked>
+              <span>Velocity Components ($v_x, v_y$)</span>
+            </label>
+            <label class="toggle-card">
+              <input type="checkbox" id="toggleRelVel" checked>
+              <span>Relative Velocity ($\mathbf{v}_{BA}$)</span>
+            </label>
+            <label class="toggle-card">
+              <input type="checkbox" id="toggleRelAcc" checked>
+              <span>Relative Acceleration ($\mathbf{a}_{BA}$)</span>
+            </label>
+            <label class="toggle-card">
+              <input type="checkbox" id="toggleRelPos" checked>
+              <span>Relative Position ($\mathbf{r}_{BA}$)</span>
+            </label>
+            <label class="toggle-card">
+              <input type="checkbox" id="toggleTrajectory" checked>
+              <span>Trajectories</span>
+            </label>
+            <label class="toggle-card">
+              <input type="checkbox" id="toggleLabels" checked>
+              <span>Vector Value Overlay Labels</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Tab 3: Graphs -->
+        <div class="tab-pane" id="tab-graphs">
+          <div class="graph-panel-container">
+            <div class="graph-controls">
+              <label for="graphSelect">Quantity:</label>
+              <select id="graphSelect" class="styled-select">
+                <option value="distance">Separation Distance d(t)</option>
+                <option value="x">Position x(t)</option>
+                <option value="y">Position y(t)</option>
+                <option value="vx">Velocity vx(t)</option>
+                <option value="vy">Velocity vy(t)</option>
+                <option value="speed">Speed v(t)</option>
+                <option value="rel_x">Relative x_BA(t)</option>
+                <option value="rel_y">Relative y_BA(t)</option>
+                <option value="rel_v">Relative Speed v_BA(t)</option>
+              </select>
+              <span class="graph-tip">Tip: Click or drag on graph to scrub simulation time</span>
+            </div>
+            <div class="graph-canvas-wrapper">
+              <canvas id="graphCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Step-by-Step Explanation -->
+        <div class="tab-pane" id="tab-explanation">
+          <div class="explanation-container" id="explanationContent">
+            <!-- Dynamically populated physics explanation -->
+          </div>
+        </div>
+
+        <!-- Tab 5: Problem Builder & JSON -->
+        <div class="tab-pane" id="tab-builder">
+          <div class="builder-container">
+            <div class="builder-column">
+              <h4>JSON Configuration</h4>
+              <textarea id="jsonConfigText" class="json-textarea" placeholder="Paste problem JSON configuration here..."></textarea>
+              <div class="builder-actions">
+                <button id="btnLoadJson" class="btn btn-secondary">Load Configuration</button>
+                <button id="btnExportJson" class="btn btn-secondary">Export Configuration</button>
+              </div>
+            </div>
+            <div class="builder-column">
+              <h4>Natural Language Problem Import (Future Ready)</h4>
+              <p class="text-muted">Enter or paste a kinematics question text below to parse into simulation parameters:</p>
+              <textarea id="nlProblemText" class="nl-textarea" placeholder="e.g. Two particles are located on a horizontal plane at a distance 60 m. At time t both particles are simultaneously projected at 45° with velocities 2 m/s and 14 m/s respectively. Find the minimum separation during motion."></textarea>
+              <button id="btnParseNl" class="btn btn-primary">Parse Problem Text</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Custom Preset Management Modal -->
+  <div id="modalPreset" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalPresetTitle">Save Custom Preset</h3>
+        <button id="btnCloseModal" class="btn-icon btn-sm">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="presetNameInput">Preset Name:</label>
+          <input type="text" id="presetNameInput" placeholder="e.g. My Projectile Experiment">
+        </div>
+        <div class="form-group">
+          <label for="presetDescInput">Description:</label>
+          <textarea id="presetDescInput" rows="3" class="json-textarea" placeholder="Optional description..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnDeletePresetModal" class="btn btn-danger hidden">Delete</button>
+        <button id="btnExportPresetModal" class="btn btn-secondary">Export JSON</button>
+        <button id="btnImportPresetModal" class="btn btn-secondary">Import JSON</button>
+        <input type="file" id="filePresetImport" accept=".json" class="hidden">
+        <button id="btnSavePresetModal" class="btn btn-primary">Save Preset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JS Entry Script -->
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
